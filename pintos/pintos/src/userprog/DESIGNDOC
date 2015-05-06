@@ -152,7 +152,9 @@ allows for minimal faults further down the line.
 >> loading.  How does your code ensure this?  How is the load
 >> success/failure status passed back to the thread that calls "exec"?
 
-
+A semaphore is used to ensure that the load is finished, and a global
+flag is used to signal the loading result of exec. From there the system
+knows whether loading succeeded or failed and can act appropriately.
 
 >> B8: Consider parent process P with child process C.  How do you
 >> ensure proper synchronization and avoid race conditions when P
@@ -161,18 +163,30 @@ allows for minimal faults further down the line.
 >> terminates without waiting, before C exits?  After C exits?  Are
 >> there any special cases?
 
+The parent holds a semaphore until its child is dead. The parent cleans up
+any remaining information after the child dies, and cleans itself up
+when the parent itself dies. 
+
 ---- RATIONALE ----
 
 >> B9: Why did you choose to implement access to user memory from the
 >> kernel in the way that you did?
 
-It is the most logical design
+It is the most logical design combining security and efficiency.
 
 >> B10: What advantages or disadvantages can you see to your design
 >> for file descriptors?
 
+By making the file descriptor owned on a process-by-process basis and 
+not a global struct, it makes it simple to identify all files opened
+by each file. However, to determine a list of all files would require
+iterating through every single process and getting the list of all files
+opened.
+
 >> B11: The default tid_t to pid_t mapping is the identity mapping.
 >> If you changed it, what advantages are there to your approach?
+
+The default mapping worked fine, there was no need to change it.
 
 			   SURVEY QUESTIONS
 			   ================
