@@ -30,19 +30,50 @@ Derrick Lam <dlam012@ucr.edu> <861005721>
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+semaphore loading()
+	Lock the argv variable to eliminated race conditions 
+bool success
+	Determine if the program loaded successfully
+	
+process_execute()
+	Limit the maximum length of a command line argument to a hard cap
+	of 4KB, the size that will fit within a single page.
+	Also permit processes to be passed in arguments. 
+
 ---- ALGORITHMS ----
 
 >> A2: Briefly describe how you implemented argument parsing.  How do
 >> you arrange for the elements of argv[] to be in the right order?
 >> How do you avoid overflowing the stack page?
 
+Place all command line arguments onto the stack, followed by a word-align,
+a null pointer, the addresses to the strings, argv, argc, and a return addres.
+The elements of argv[] will be placed in the correct order placing them
+from max to argv[0], and if any order needs to be switched, simply direct
+the address to its original string. 
+Overflow can be prevented by ensuring that the stack size is always kept
+in mind. Because the stack size remains constant, any attempt to overflow
+can be checked with a comparator.
+
 ---- RATIONALE ----
 
 >> A3: Why does Pintos implement strtok_r() but not strtok()?
 
+strtok_r() can be called from multiple threads concurrently, due to the 
+fact that it does not store internal states between calls. Implementing
+strtok_r() prevents race conditions and allows for simpler implementation
+without the use of extra locks or semaphores.
+
 >> A4: In Pintos, the kernel separates commands into a executable name
 >> and arguments.  In Unix-like systems, the shell does this
 >> separation.  Identify at least two advantages of the Unix approach.
+
+The string parsing is a high level function that does not need to be done
+by the kernel. Minor resource allocation can be saved by having a low level
+thread process the string manipulation instead of a kernel elevated thread.
+Parsing in user space also allows an additional layer of protection against
+possible attacks by only affecting the shell on the user level instead of 
+the kernel level.
 
 			     SYSTEM CALLS
 			     ============
@@ -53,14 +84,27 @@ Derrick Lam <dlam012@ucr.edu> <861005721>
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+struct list file_list
+	Every thread needs to keep track of what files it has opened
+int next_handle
+	The next integer of the file descriptor
+struct list child_list
+	List of children 
+
 >> B2: Describe how file descriptors are associated with open files.
 >> Are file descriptors unique within the entire OS or just within a
 >> single process?
+
+File descriptors are unique to single processes. When a file is opened
+by a process, a file descriptor is added to the thread of that process.
 
 ---- ALGORITHMS ----
 
 >> B3: Describe your code for reading and writing user data from the
 >> kernel.
+
+The process confirms that the source and destination address are valid
+and acceptable, then copy the appropriate data.
 
 >> B4: Suppose a system call causes a full page (4,096 bytes) of data
 >> to be copied from user space into the kernel.  What is the least
@@ -69,8 +113,18 @@ Derrick Lam <dlam012@ucr.edu> <861005721>
 >> for a system call that only copies 2 bytes of data?  Is there room
 >> for improvement in these numbers, and how much?
 
+In the current implementation, if 4096 bytes of data are copied, pagedir_get_page() 
+is called 4096 times. Similarly, if only 2 bytes of data are copied, 
+the function is called twice. The current implementation can be improved
+by allowing the function to handle more than single bytes at a time. 
+
 >> B5: Briefly describe your implementation of the "wait" system call
 >> and how it interacts with process termination.
+
+A process returns -1 if it attempts to wait for a pid that it is already
+waiting for. If the pid is already dead, the kernel returns the return status
+of the dead process. The process waits until the pid returns and returns
+its return value.  
 
 >> B6: Any access to user program memory at a user-specified address
 >> can fail due to a bad pointer value.  Such accesses must cause the
@@ -86,12 +140,19 @@ Derrick Lam <dlam012@ucr.edu> <861005721>
 >> paragraphs, describe the strategy or strategies you adopted for
 >> managing these issues.  Give an example.
 
+Each address that is referenced must be checked for validity before 
+attempting to read any kind of data. If there is any fault at any point,
+there is an immediate sys_exit that keeps things tidy and hopefully
+allows for minimal faults further down the line. 
+
 ---- SYNCHRONIZATION ----
 
 >> B7: The "exec" system call returns -1 if loading the new executable
 >> fails, so it cannot return before the new executable has completed
 >> loading.  How does your code ensure this?  How is the load
 >> success/failure status passed back to the thread that calls "exec"?
+
+
 
 >> B8: Consider parent process P with child process C.  How do you
 >> ensure proper synchronization and avoid race conditions when P
@@ -104,6 +165,8 @@ Derrick Lam <dlam012@ucr.edu> <861005721>
 
 >> B9: Why did you choose to implement access to user memory from the
 >> kernel in the way that you did?
+
+It is the most logical design
 
 >> B10: What advantages or disadvantages can you see to your design
 >> for file descriptors?
