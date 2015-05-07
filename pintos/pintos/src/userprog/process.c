@@ -41,8 +41,6 @@ process_execute (const char *file_name)
   char *fn_copy; 
   tid_t tid;
 
-  //##Set exec file name here
-  exec->file_name = file_name;
   //##Initialize a semaphore for loading here
   
   /* Make a copy of FILE_NAME.
@@ -56,6 +54,8 @@ process_execute (const char *file_name)
 
   //##Add program name to thread_name, watch out for the size, strtok_r.....
   //##Program name is the first token of file_name
+  char* progress_ptr;
+  file_name = strtok_r(file_name, " ", progress_ptr);
 
   //##Change file_name in thread_create to thread_name
   /* Create a new thread to execute FILE_NAME. */
@@ -88,6 +88,10 @@ start_process (void *file_name_)
   struct intr_frame if_;
   bool success;
 
+  // get file name
+  char* progress_ptr;
+  file_name = strtok_r(file_name, " ", progress_ptr);
+  
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;

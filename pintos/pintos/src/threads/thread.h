@@ -100,6 +100,12 @@ struct thread
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
+
+    struct list file_list;
+    int fd;
+    // list of children each thread has and accessed during wait/exec
+    struct list child_list;
+    tid_t parent;
   };
 
 /* If false (default), use round-robin scheduler.
