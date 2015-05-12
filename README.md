@@ -10,14 +10,14 @@ Covers the principles and practice of operating system design. Includes concurre
 
 ###Project description:
 
-You will be working out of the "userprog" directory for this assignment, but you will also be interacting with almost every other part of Pintos.
+You will enable programs to interact with the OS via system calls. The base code already supports loading and running user programs, but no I/O or interactivity is possible. 
 
 ###Class links:
 
-Piazza                  https://piazza.com/class/i7qf1f0ciku2bh 
+Piazza									https://piazza.com/class/i7qf1f0ciku2bh 
 
-Instructor homepage     http://www.cs.ucr.edu/~zhiyunq/teaching/cs153/ 
+Instructor homepage			http://www.cs.ucr.edu/~zhiyunq/teaching/cs153/ 
 
-TA homepage             http://www.cs.ucr.edu/~jfrea001/S15/CS153.html
+TA homepage							http://www.cs.ucr.edu/~jfrea001/S15/CS153.html
 
-Project homepage        http://www.cs.ucr.edu/~jfrea001/S15/doc/pintos_2.html
+Project homepage				http://www.cs.ucr.edu/~jfrea001/S15/doc/pintos_3.html
