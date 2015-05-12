@@ -101,11 +101,16 @@ struct thread
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
 
+    // $List of files accessed by each thread
     struct list file_list;
+    // $File descriptor
     int fd;
-    // list of children each thread has and accessed during wait/exec
+    // $List of children each thread has and accessed during wait/exec
     struct list child_list;
+    // $Thread ID of this thread's parent
     tid_t parent;
+    // $Pointer to child_process struct for each thread's child list
+    struct child_process* child;
   };
 
 /* If false (default), use round-robin scheduler.

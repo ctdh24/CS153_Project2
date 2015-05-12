@@ -193,7 +193,9 @@ thread_create (const char *name, int priority,
   kf = alloc_frame (t, sizeof *kf);
   kf->eip = NULL;
   kf->function = function;
-  kf->aux = aux;
+
+  // $Now that we're passing in an exec_helper struct, we need to get its file_name
+  kf->aux = aux.file_name;
 
   /* Stack frame for switch_entry(). */
   ef = alloc_frame (t, sizeof *ef);
@@ -203,6 +205,13 @@ thread_create (const char *name, int priority,
   sf = alloc_frame (t, sizeof *sf);
   sf->eip = switch_entry;
   sf->ebp = 0;
+
+  // $If the thread was successfully, set exec's success to true
+
+  // $Add child process to child list
+  t->parent = thread_tid();
+  struct child_process *cp = add_child_process(t->tid);
+  t->child = cp;
 
   intr_set_level (old_level);
 
