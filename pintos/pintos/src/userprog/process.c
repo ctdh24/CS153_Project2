@@ -14,12 +14,13 @@
 #include "threads/flags.h"
 #include "threads/init.h"
 #include "threads/interrupt.h"
+#include "threads/malloc.h"
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 
 static thread_func start_process NO_RETURN;
-static bool load (const char *cmdline, void (**eip) (void), void **esp);
+static bool load (const char *cmdline, void (**eip) (void), void **esp, char** progress_ptr);
 
 struct exec_helper{
   const char* file_name;            //## Program to load (entire command line)
@@ -55,11 +56,11 @@ process_execute (const char *file_name)
   //##Add program name to thread_name, watch out for the size, strtok_r.....
   //##Program name is the first token of file_name
   char* progress_ptr;
-  file_name = strtok_r(file_name, " ", progress_ptr);
+  file_name = strtok_r(file_name, " ", &progress_ptr);
 
   //##Change file_name in thread_create to thread_name
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, exec); 
+  tid = thread_create (file_name, PRI_DEFAULT, start_process, exec->file_name); 
   //## remove fn_copy, Add exec to the end of these params, a void is allowed. 
   //Look in thread_create, kf->aux is set to thread_create aux which would be exec. So make good use of exec helper!
   if (tid != TID_ERROR){   
@@ -97,7 +98,7 @@ start_process (void *file_name_)
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  success = load (file_name, &if_.eip, &if_.esp);
+  success = load (file_name, &if_.eip, &if_.esp, &progress_ptr);
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
@@ -233,7 +234,10 @@ struct Elf32_Phdr
 #define PF_W 2          /* Writable. */
 #define PF_R 4          /* Readable. */
 
-static bool setup_stack (void **esp);
+#define WORD_SIZE = 4
+#define DEFAULT_ARGV = 2
+
+static bool setup_stack (void **esp, const char* file_name, char** progress_ptr);
 static bool validate_segment (const struct Elf32_Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
@@ -244,7 +248,7 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
    and its initial stack pointer into *ESP.
    Returns true if successful, false otherwise. */
 bool
-load (const char *file_name, void (**eip) (void), void **esp) //##Change file name to cmd_line
+load (const char *file_name, void (**eip) (void), void **esp, char** progress_ptr) //##Change file name to cmd_line
 {
   struct thread *t = thread_current ();
   //##char file_name[NAME_MAX + 2];    ##Add a file name variable here, the file_name and cmd_line are DIFFERENT! 
@@ -355,7 +359,7 @@ load (const char *file_name, void (**eip) (void), void **esp) //##Change file na
     }
 
   /* Set up stack. */
-  if (!setup_stack (esp))	//##Add cmd_line to setup_stack param here, also change setup_stack
+  if (!setup_stack (esp, char** progress_ptr))	//##Add cmd_line to setup_stack param here, also change setup_stack
     goto done;
 
   /* Start address. */
@@ -480,20 +484,71 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
 static bool
-setup_stack (void **esp) 
+setup_stack (void **esp, const char* file_name, char** progress_ptr) 
 {
   uint8_t *kpage;
   bool success = false;
 
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
-  if (kpage != NULL) 
+  if (!kpage)
     {
-      success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
-      if (success)
-        *esp = PHYS_BASE - 12;
-      else
-        palloc_free_page (kpage);
+      return success;
     }
+  success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
+  if (success)
+    *esp = PHYS_BASE;
+  else
+    {
+      palloc_free_page(kpage);
+      return success;
+    }
+
+  char* token;
+  char** argv = malloc(DEFAULT_ARGV*sizeof(char *));
+  if (!argv){
+    return false;
+  }
+  int i, argc = 0, argv_size = DEFAULT_ARGV;
+
+  // Push args onto stack
+  for(token = (char *) file_name; token != NULL; token = strtok_r(NULL, " ", progress_ptr)){
+    *esp -= strlen(token) + 1;
+    argv[argc] = *esp;
+    argc++;
+    // Resize argv
+    if (argc >= argv_size){
+      argv_size *= 2;
+      argv = realloc(argv, argv_size*sizeof(char *));
+      if (!argv){
+        return false;
+      }
+    }
+    memcpy(*esp, token, strlen(token) + 1);
+  } 
+  argv[argc] = 0;
+  // Align to word size (4 bytes)
+  i = (size_t) *esp % WORD_SIZE;
+  if(i){
+    *esp -= i;
+    memcpy(*esp, &argv[argc], i);
+  }
+  // Push argv[i] for all i
+  for (i = argc; i >= 0; i--){
+    *esp -= sizeof(char *);
+    memcpy(*esp, &argv[i], sizeof(char *));
+  }
+  // Push argv
+  token = *esp;
+  *esp -= sizeof(char **);
+  memcpy(*esp, &token, sizeof(char **));
+  // Push argc
+  *esp -= sizeof(int);
+  memcpy(*esp, &argc, sizeof(int));
+  // Push fake return addr
+  *esp -= sizeof(void *);
+  memcpy(*esp, &argv[argc], sizeof(void *));
+  // Free argv
+  free(argv);
   return success;
 }
 
