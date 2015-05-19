@@ -36,7 +36,7 @@ struct exec_helper{
 tid_t
 process_execute (const char *file_name) 
 {
-  struct exec_helper exec;
+  struct exec_helper* exec;
   //##char thread_name[16];
   // used to deep copy file_name
   char *fn_copy; 
