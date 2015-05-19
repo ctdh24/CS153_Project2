@@ -25,7 +25,7 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp, char** p
 struct exec_helper{
   const char* file_name;            //## Program to load (entire command line)
   bool success;                     //##Add bool for determining if program loaded successfully
-  struct semaphore load;            //##Add semaphore for loading (for resource race cases!)
+  struct semaphore* load;            //##Add semaphore for loading (for resource race cases!)
   struct wait_status* wait_status;  //## Add other stuff you need to transfer between process_execute and process_start 
 };
 
@@ -64,7 +64,7 @@ process_execute (const char *file_name)
   //## remove fn_copy, Add exec to the end of these params, a void is allowed. 
   //Look in thread_create, kf->aux is set to thread_create aux which would be exec. So make good use of exec helper!
   if (tid != TID_ERROR){   
-    sema_down(&exec->loaded);                       //##Down a semaphore for loading (where should you up it?)
+    sema_down(&exec->load);                       //##Down a semaphore for loading (where should you up it?)
     exec->wait_status->tid = tid;
     //##If program load successfull, add new child to the list of this thread's children (mind your list_elems)... 
     //we need to check this list in process wait, when children are done, process wait can finish... see process wait...      
