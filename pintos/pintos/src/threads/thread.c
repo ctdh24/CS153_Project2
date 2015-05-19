@@ -195,7 +195,7 @@ thread_create (const char *name, int priority,
   kf->function = function;
 
   // $Now that we're passing in an exec_helper struct, we need to get its file_name
-  kf->aux = aux.file_name;
+  kf->aux = aux->file_name;
 
   /* Stack frame for switch_entry(). */
   ef = alloc_frame (t, sizeof *ef);
