@@ -51,16 +51,16 @@ pid_t exec (const char *cmd_line)
   struct child_process* cp = get_child_process(pid);
   if (!cp)
     {
-      return ERROR;
+      return -1;
     }
-  if (cp->load == NOT_LOADED)
+  if (cp->load == 0)
     {
       sema_down(&cp->load_sema);
     }
-  if (cp->load == LOAD_FAIL)
+  if (cp->load == 2)
     {
       remove_child_process(cp);
-      return ERROR;
+      return -1;
     }
   return pid;
 }
