@@ -64,13 +64,6 @@ void seek (int fd, unsigned position) {}
 unsigned tell (int fd) {}
 void close (int fd) {}
 
-static void
-syscall_handler (struct intr_frame *f UNUSED) 
-{
-  printf ("system call!\n");
-  thread_exit ();
-}
-
 /* Copies a byte from user address USRC to kernel address DST.
    USRC must be below PHYS_BASE.
    Returns true if successful, false if a segfault occurred. */
@@ -140,7 +133,7 @@ syscall_handler (struct intr_frame *f)
 	//##Depending on the callNum...
 	f->eax = desired_sys_call_fun (args[0], args[1], args[2]);
 */
-  int arg[MAX_ARGS];
+  int arg[3];
   int esp = user_to_kernel_ptr((const void*) f->esp);
   switch (* (int *) esp)
     {
