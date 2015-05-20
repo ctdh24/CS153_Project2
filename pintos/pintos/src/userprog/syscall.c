@@ -93,7 +93,7 @@ int open (const char *file)
   if (!f)
     {
       lock_release(&file_lock);
-      return ERROR;
+      return -1;
     }
   int fd = process_add_file(f);
   lock_release(&file_lock);
@@ -107,7 +107,7 @@ int filesize (int fd)
   if (!f)
     {
       lock_release(&file_lock);
-      return ERROR;
+      return -1;
     }
   int size = file_length(f);
   lock_release(&file_lock);
@@ -131,7 +131,7 @@ int read (int fd, void *buffer, unsigned size)
   if (!f)
     {
       lock_release(&file_lock);
-      return ERROR;
+      return -1;
     }
   int bytes = file_read(f, buffer, size);
   lock_release(&file_lock);
@@ -150,7 +150,7 @@ int write (int fd, const void *buffer, unsigned size)
   if (!f)
     {
       lock_release(&file_lock);
-      return ERROR;
+      return -1;
     }
   int bytes = file_write(f, buffer, size);
   lock_release(&file_lock);
@@ -177,7 +177,7 @@ unsigned tell (int fd)
   if (!f)
     {
       lock_release(&file_lock);
-      return ERROR;
+      return -1;
     }
   off_t offset = file_tell(f);
   lock_release(&file_lock);
