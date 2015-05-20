@@ -73,7 +73,7 @@ int wait (pid_t pid)
 bool create (const char *file, unsigned initial_size)
 {
   lock_acquire(&file_lock);
-  bool success = file_create(file, initial_size);
+  bool success = filesys_create(file, initial_size);
   lock_release(&file_lock);
   return success;
 }
@@ -81,7 +81,7 @@ bool create (const char *file, unsigned initial_size)
 bool remove (const char *file)
 {
   lock_acquire(&file_lock);
-  bool success = file_remove(file);
+  bool success = filesys_remove(file);
   lock_release(&file_lock);
   return success;
 }
@@ -89,7 +89,7 @@ bool remove (const char *file)
 int open (const char *file)
 {
   lock_acquire(&file_lock);
-  struct file *f = file_open(file);
+  struct file *f = filesys_open(file);
   if (!f)
     {
       lock_release(&file_lock);
