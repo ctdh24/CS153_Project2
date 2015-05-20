@@ -102,7 +102,7 @@ struct thread
     unsigned magic;                     /* Detects stack overflow. */
 
     // $List of held/locked threads
-    struct list lock_list
+    struct list lock_list;
     // $List of files accessed by each thread
     struct list file_list;
     // $File descriptor
