@@ -13,6 +13,10 @@
 #include "threads/vaddr.h"
 #ifdef USERPROG
 #include "userprog/process.h"
+
+// $malloc and syscall are needed
+#include "threads/malloc.h"
+#include "userprog/syscall.h"
 #endif
 
 /* Random value for struct thread's `magic' member.
@@ -193,9 +197,7 @@ thread_create (const char *name, int priority,
   kf = alloc_frame (t, sizeof *kf);
   kf->eip = NULL;
   kf->function = function;
-
-  // $Now that we're passing in an exec_helper struct, we need to get its file_name
-  //kf->aux = aux->file_name;
+  kf->aux = aux;
 
   /* Stack frame for switch_entry(). */
   ef = alloc_frame (t, sizeof *ef);
@@ -307,6 +309,7 @@ thread_exit (void)
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
   intr_disable ();
+  thread_unlock_all();
   list_remove (&thread_current()->allelem);
   thread_current ()->status = THREAD_DYING;
   schedule ();
@@ -479,6 +482,15 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->magic = THREAD_MAGIC;
   list_push_back (&all_list, &t->allelem);
+
+  t->execute = NULL;
+  list_init(&t->lock_list);
+  list_init(&t->file_list);
+  // $Set File Descriptor to a FIXED value for now
+  t->fd = 2;
+  list_init(&t->child_list);
+  t->child = NULL;
+  t->parent = -1;
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and
@@ -590,7 +602,32 @@ allocate_tid (void)
 
   return tid;
 }
-
+
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
+
+bool thread_live(int pid){
+  struct list_elem *e;
+  // $Return true if parameter PID exists in the list of all threads
+  for (e = list_begin (&all_list); e != list_end (&all_list); e = list_next (e)){
+      struct thread *t = list_entry (e, struct thread, allelem);
+      if (t->tid == pid){
+        return true;
+      }
+  }
+  return false;
+}
+
+void thread_unlock_all(void){
+  struct thread *t = thread_current();
+  struct list_elem *next, *e = list_begin(&t->lock_list);
+
+  while (e != list_end(&t->lock_list)){
+      next = list_next(e);
+      struct lock *l = list_entry(e, struct lock, elem);
+      lock_release(l);
+      list_remove(&l->elem);
+      e = next;
+    }
+}

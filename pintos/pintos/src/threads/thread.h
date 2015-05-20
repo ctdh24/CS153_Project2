@@ -101,6 +101,8 @@ struct thread
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
 
+    // $List of held/locked threads
+    struct list lock_list
     // $List of files accessed by each thread
     struct list file_list;
     // $File descriptor
@@ -111,6 +113,8 @@ struct thread
     tid_t parent;
     // $Pointer to child_process struct for each thread's child list
     struct child_process* child;
+    // $Pointer to keep track of executables
+    struct file* execute;
   };
 
 /* If false (default), use round-robin scheduler.
@@ -149,4 +153,6 @@ void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
+bool thread_live(int);
+void thread_unlock_all(void);
 #endif /* threads/thread.h */
