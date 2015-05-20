@@ -195,7 +195,7 @@ struct child_process* add_child_process (int pid)
     return NULL;
   }
   child->pid = pid;
-  child->load = NOT_LOADED;
+  child->load = 0; // $FIXED load failure = 0
   child->wait = false;
   child->exit = false;
   sema_init(&child->load_sema, 0);
