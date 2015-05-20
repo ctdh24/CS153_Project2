@@ -64,55 +64,6 @@ void seek (int fd, unsigned position) {}
 unsigned tell (int fd) {}
 void close (int fd) {}
 
-/* Copies a byte from user address USRC to kernel address DST.
-   USRC must be below PHYS_BASE.
-   Returns true if successful, false if a segfault occurred. */
-   // $MOVED above get_user/copy_in/copy_in_string to get rid of compile conflict
-static inline bool
-get_user (uint8_t *dst, const uint8_t *usrc)
-{
-  int eax;
-  asm ("movl $1f, %%eax; movb %2, %%al; movb %%al, %0; 1:"
-       : "=m" (*dst), "=&a" (eax) : "m" (*usrc));
-  return eax != 0;
-}
-
-
-/* Copies SIZE bytes from user address USRC to kernel address
-   DST.
-   Call thread_exit() if any of the user accesses are invalid. */
-static void
-copy_in (void *dst_, const void *usrc_, size_t size) 
-{
-  uint8_t *dst = dst_;
-  const uint8_t *usrc = usrc_;
- 
-  for (; size > 0; size--, dst++, usrc++) 
-    if (usrc >= (uint8_t *) PHYS_BASE || !get_user (dst, usrc)) 
-      thread_exit ();
-}
-
-
-static bool
-setup_stack (void **esp)//##Add cmd_line here 
-{
-  uint8_t *kpage;
-  bool success = false;
-
-  kpage = palloc_get_page (PAL_USER | PAL_ZERO);
-  if (kpage != NULL) 
-    {
-      //## uint8_t *upage = ( (uint8_t *) PHYS_BASE ) - PGSIZE;
-      success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true); //##Change the first parameter to upage since its the same thing.
-      if (success)
-        *esp = PHYS_BASE; //## Remove this, setup_stack_helper will set esp
-	//## success = setup_stack_helper(...)
-      else
-        palloc_free_page (kpage);
-    }
-  return success;
-}
-
 static void
 syscall_handler (struct intr_frame *f)
 {/*
@@ -228,46 +179,6 @@ syscall_handler (struct intr_frame *f)
   break;
       }
     }
-}
-
-/* Creates a copy of user string US in kernel memory
-   and returns it as a page that must be freed with
-   palloc_free_page().
-   Truncates the string at PGSIZE bytes in size.
-   Call thread_exit() if any of the user accesses are invalid. */
-static char *
-copy_in_string (const char *us) 
-{
-  char *ks;
-  size_t length;
- 
-  ks = palloc_get_page (0);
-  if (ks == NULL) 
-    thread_exit ();
- 
-  for (length = 0; length < PGSIZE; length++)
-    {
-      if (us >= (char *) PHYS_BASE || !get_user (ks + length, us++)) 
-        {
-          palloc_free_page (ks);
-          thread_exit (); 
-        }
-       
-      if (ks[length] == '\0')
-        return ks;
-    }
-  ks[PGSIZE - 1] = '\0';
-  return ks;
-}
-
-
-/* Returns true if UADDR is a valid, mapped user address,
-   false otherwise. */
-static bool
-verify_user (const void *uaddr) 
-{
-  return (uaddr < PHYS_BASE
-          && pagedir_get_page (thread_current ()->pagedir, uaddr) != NULL);
 }
 
 struct child_process* add_child_process (int pid)
