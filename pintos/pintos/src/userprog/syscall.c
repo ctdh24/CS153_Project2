@@ -71,6 +71,35 @@ syscall_handler (struct intr_frame *f UNUSED)
   thread_exit ();
 }
 
+/* Copies a byte from user address USRC to kernel address DST.
+   USRC must be below PHYS_BASE.
+   Returns true if successful, false if a segfault occurred. */
+   // $MOVED above get_user/copy_in/copy_in_string to get rid of compile conflict
+static inline bool
+get_user (uint8_t *dst, const uint8_t *usrc)
+{
+  int eax;
+  asm ("movl $1f, %%eax; movb %2, %%al; movb %%al, %0; 1:"
+       : "=m" (*dst), "=&a" (eax) : "m" (*usrc));
+  return eax != 0;
+}
+
+
+/* Copies SIZE bytes from user address USRC to kernel address
+   DST.
+   Call thread_exit() if any of the user accesses are invalid. */
+static void
+copy_in (void *dst_, const void *usrc_, size_t size) 
+{
+  uint8_t *dst = dst_;
+  const uint8_t *usrc = usrc_;
+ 
+  for (; size > 0; size--, dst++, usrc++) 
+    if (usrc >= (uint8_t *) PHYS_BASE || !get_user (dst, usrc)) 
+      thread_exit ();
+}
+
+
 static bool
 setup_stack (void **esp)//##Add cmd_line here 
 {
@@ -110,34 +139,6 @@ syscall_handler (struct intr_frame *f)
 	//##Use switch statement or something and run this below for each
 	//##Depending on the callNum...
 	f->eax = desired_sys_call_fun (args[0], args[1], args[2]);
-}
-
-/* Copies a byte from user address USRC to kernel address DST.
-   USRC must be below PHYS_BASE.
-   Returns true if successful, false if a segfault occurred. */
-   // $MOVED above get_user/copy_in/copy_in_string to get rid of compile conflict
-static inline bool
-get_user (uint8_t *dst, const uint8_t *usrc)
-{
-  int eax;
-  asm ("movl $1f, %%eax; movb %2, %%al; movb %%al, %0; 1:"
-       : "=m" (*dst), "=&a" (eax) : "m" (*usrc));
-  return eax != 0;
-}
-
-
-/* Copies SIZE bytes from user address USRC to kernel address
-   DST.
-   Call thread_exit() if any of the user accesses are invalid. */
-static void
-copy_in (void *dst_, const void *usrc_, size_t size) 
-{
-  uint8_t *dst = dst_;
-  const uint8_t *usrc = usrc_;
- 
-  for (; size > 0; size--, dst++, usrc++) 
-    if (usrc >= (uint8_t *) PHYS_BASE || !get_user (dst, usrc)) 
-      thread_exit ();
 }
 
 /* Creates a copy of user string US in kernel memory
