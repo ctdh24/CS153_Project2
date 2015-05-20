@@ -623,9 +623,12 @@ void thread_unlock_all(void){
   struct thread *t = thread_current();
   struct list_elem *next, *e = list_begin(&t->lock_list);
 
-  while (e != list_end(&t->lock_list)){
+  /*while (e != list_end(&t->lock_list)){
       next = list_next(e);
+      struct lock *l = list_entry(e, struct lock, elem);
       lock_release(l);
+      list_remove(&l->elem);
       e = next;
     }
+  */
 }
