@@ -18,6 +18,7 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "userprog/syscall.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp, char** progress_ptr);
@@ -63,7 +64,7 @@ process_execute (const char *file_name)
   tid = thread_create (file_name, PRI_DEFAULT, start_process, exec->file_name); 
   //## remove fn_copy, Add exec to the end of these params, a void is allowed. 
   //Look in thread_create, kf->aux is set to thread_create aux which would be exec. So make good use of exec helper!
-  if (tid != TID_ERROR){   
+  /*if (tid != TID_ERROR){   
     sema_down(&exec->load);                       //##Down a semaphore for loading (where should you up it?)
     exec->wait_status->tid = tid;
     //##If program load successfull, add new child to the list of this thread's children (mind your list_elems)... 
@@ -74,7 +75,10 @@ process_execute (const char *file_name)
   else{
     palloc_free_page (fn_copy);
   }
-
+  */
+  if(tid == TID_ERROR){
+    palloc_free_page(fn_copy);
+  }
         
      //##Got rid...
   return tid;
@@ -92,13 +96,18 @@ start_process (void *file_name_)
   // get file name
   char* progress_ptr;
   file_name = strtok_r(file_name, " ", progress_ptr);
-  
+  struct thread *t = thread_current();
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp, &progress_ptr);
+  if (success)
+    t->cp->load = LOAD_SUCCESS;
+  else
+    t->cp->load = LOAD_FAIL;
+  sema_up(&t->cp->load_sema);
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
@@ -127,7 +136,15 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  return -1;
+  struct child_process* cp = get_child_process(child_tid);
+  if (!cp || cp->wait)
+      return ERROR;
+  cp->wait = true;
+  if (!cp->exit)
+      sema_down(&cp->exit_sema);
+  int status = cp->status;
+  remove_child_process(cp);
+  return status;
 }
 
 /* Free the current process's resources. */
@@ -234,8 +251,8 @@ struct Elf32_Phdr
 #define PF_W 2          /* Writable. */
 #define PF_R 4          /* Readable. */
 
-#define WORD_SIZE = 4
-#define DEFAULT_ARGV = 2
+#define WORD_SIZE 4
+#define DEFAULT_ARGV 2
 
 static bool setup_stack (void **esp, const char* file_name, char** progress_ptr);
 static bool validate_segment (const struct Elf32_Phdr *, struct file *);

@@ -1,6 +1,21 @@
 #ifndef USERPROG_SYSCALL_H
 #define USERPROG_SYSCALL_H
 
+struct lock file_lock;
+
+struct child_process {
+  int pid;
+  int status;
+  int load;
+
+  bool wait;
+  bool exit;
+  
+  struct semaphore load_sema;
+  struct semaphore exit_sema;
+  struct list_elem elem;
+};
+
 void syscall_init (void);
 
 void halt (void);

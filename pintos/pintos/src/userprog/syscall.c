@@ -9,13 +9,23 @@ static void syscall_handler (struct intr_frame *);
 void
 syscall_init (void) 
 {
+  lock_init(&file_lock);
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
 void halt (void){
   shutdown_power_off();
 }
-void exit (int status){}
+
+void exit (int status){ 
+  struct thread *t = thread_current();
+  if (thread_live(t->parent) && t->child){
+      t->child->status = status;
+  }
+  printf("%s: exit(%d)\n", t->name, status);
+  thread_exit();
+}
+
 //pid_t exec (const char *cmd_line) {}
 int wait();
 //int wait (pid_t pid) {}
