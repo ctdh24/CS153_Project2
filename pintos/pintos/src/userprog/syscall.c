@@ -232,3 +232,34 @@ void remove_child_processes (void)
       e = next;
     }
 }
+
+void get_arg (struct intr_frame *f, int *arg, int n)
+{
+  int i;
+  int *ptr;
+  for (i = 0; i < n; i++)
+    {
+      ptr = (int *) f->esp + i + 1;
+      check_valid_ptr((const void *) ptr);
+      arg[i] = *ptr;
+    }
+}
+
+void check_valid_buffer (void* buffer, unsigned size)
+{
+  unsigned i;
+  char* local_buffer = (char *) buffer;
+  for (i = 0; i < size; i++)
+    {
+      check_valid_ptr((const void*) local_buffer);
+      local_buffer++;
+    }
+}
+
+void check_valid_string (const void* str)
+{
+  while (* (char *) user_to_kernel_ptr(str) != 0)
+    {
+      str = (char *) str + 1;
+    }
+}
