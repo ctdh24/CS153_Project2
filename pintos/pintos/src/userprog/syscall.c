@@ -187,3 +187,33 @@ verify_user (const void *uaddr)
   return (uaddr < PHYS_BASE
           && pagedir_get_page (thread_current ()->pagedir, uaddr) != NULL);
 }
+
+struct child_process* add_child_process (int pid)
+{
+  struct child_process* child = malloc(sizeof(struct child_process));
+  if (!child){
+    return NULL;
+  }
+  child->pid = pid;
+  child->load = NOT_LOADED;
+  child->wait = false;
+  child->exit = false;
+  sema_init(&child->load_sema, 0);
+  sema_init(&child->exit_sema, 0);
+  list_push_back(&thread_current()->child_list, &child->elem);
+  return child;
+}
+
+struct child_process* get_child_process (int pid)
+{
+  struct thread *t = thread_current();
+  struct list_elem *e;
+
+  for (e = list_begin (&t->child_list); e != list_end (&t->child_list); e = list_next (e)){
+    struct child_process *child = list_entry(e, struct child_process, elem);
+    if (pid == child->pid){
+      return child;
+    }
+  }
+  return NULL;
+}

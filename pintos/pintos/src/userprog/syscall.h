@@ -34,4 +34,7 @@ void seek (int fd, unsigned position) ;
 unsigned tell (int fd) ;
 void close (int fd) ;
 
+struct child_process* add_child_process (int pid);
+struct child_process* get_child_process (int pid);
+
 #endif /* userprog/syscall.h */
