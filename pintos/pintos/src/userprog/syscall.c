@@ -45,9 +45,31 @@ void exit (int status){
   thread_exit();
 }
 
-//pid_t exec (const char *cmd_line) {}
-int wait();
-//int wait (pid_t pid) {}
+pid_t exec (const char *cmd_line)
+{
+  pid_t pid = process_execute(cmd_line);
+  struct child_process* cp = get_child_process(pid);
+  if (!cp)
+    {
+      return ERROR;
+    }
+  if (cp->load == NOT_LOADED)
+    {
+      sema_down(&cp->load_sema);
+    }
+  if (cp->load == LOAD_FAIL)
+    {
+      remove_child_process(cp);
+      return ERROR;
+    }
+  return pid;
+}
+
+int wait (pid_t pid)
+{
+  return process_wait(pid);
+}
+
 bool create (const char *file, unsigned initial_size) {}
 bool remove (const char *file) {}
 int open (const char *file) {}
