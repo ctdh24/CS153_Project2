@@ -104,10 +104,10 @@ start_process (void *file_name_)
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp, &progress_ptr);
   if (success)
-    t->cp->load = LOAD_SUCCESS;
+    t->child->load = LOAD_SUCCESS;
   else
-    t->cp->load = LOAD_FAIL;
-  sema_up(&t->cp->load_sema);
+    t->child->load = LOAD_FAIL;
+  sema_up(&t->child->load_sema);
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
@@ -138,7 +138,7 @@ process_wait (tid_t child_tid UNUSED)
 {
   struct child_process* cp = get_child_process(child_tid);
   if (!cp || cp->wait)
-      return ERROR;
+      return -1;  // FIXED -1 ERROR
   cp->wait = true;
   if (!cp->exit)
       sema_down(&cp->exit_sema);
@@ -376,7 +376,7 @@ load (const char *file_name, void (**eip) (void), void **esp, char** progress_pt
     }
 
   /* Set up stack. */
-  if (!setup_stack (esp, char** progress_ptr))	//##Add cmd_line to setup_stack param here, also change setup_stack
+  if (!setup_stack(esp, file_name, progress_ptr))	//##Add cmd_line to setup_stack param here, also change setup_stack
     goto done;
 
   /* Start address. */

@@ -36,5 +36,7 @@ void close (int fd) ;
 
 struct child_process* add_child_process (int pid);
 struct child_process* get_child_process (int pid);
+void remove_child_process (struct child_process *cp);
+void remove_child_processes (void);
 
 #endif /* userprog/syscall.h */
