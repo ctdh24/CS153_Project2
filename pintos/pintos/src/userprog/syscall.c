@@ -192,7 +192,7 @@ void check_valid_ptr (const void *vaddr)
 {
   if (!is_user_vaddr(vaddr) || vaddr < USER_VADDR_BOTTOM)
     {
-      exit(ERROR);
+      exit(-1);
     }
 }
 
@@ -202,7 +202,7 @@ int user_to_kernel_ptr(const void *vaddr)
   void *ptr = pagedir_get_page(thread_current()->pagedir, vaddr);
   if (!ptr)
     {
-      exit(ERROR);
+      exit(-1);
     }
   return (int) ptr;
 }
