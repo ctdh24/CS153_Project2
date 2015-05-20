@@ -659,12 +659,12 @@ void process_close_file (int fd)
     {
       next = list_next(e);
       struct process_file *pf = list_entry (e, struct process_file, elem);
-      if (fd == pf->fd || fd == CLOSE_ALL)
+      if (fd == pf->fd || fd == -1)
   {
     file_close(pf->file);
     list_remove(&pf->elem);
     free(pf);
-    if (fd != CLOSE_ALL)
+    if (fd != -1)
       {
         return;
       }
