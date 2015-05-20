@@ -104,9 +104,9 @@ start_process (void *file_name_)
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp, &progress_ptr);
   if (success)
-    t->child->load = LOAD_SUCCESS;
+    t->child->load = 1; // $FIXED load succeed = 1
   else
-    t->child->load = LOAD_FAIL;
+    t->child->load = 2; // $FIXED load failure = 2
   sema_up(&t->child->load_sema);
 
   /* If load failed, quit. */
