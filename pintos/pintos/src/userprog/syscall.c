@@ -16,6 +16,8 @@
 #include "userprog/pagedir.h"
 #include "userprog/process.h"
 
+#define USER_VADDR_BOTTOM ((void *) 0x08048000)
+
 static void syscall_handler (struct intr_frame *);
 int user_to_kernel_ptr(const void *vaddr);
 void get_arg (struct intr_frame *f, int *arg, int n);
