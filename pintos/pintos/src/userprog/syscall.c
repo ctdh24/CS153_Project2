@@ -70,28 +70,126 @@ int wait (pid_t pid)
   return process_wait(pid);
 }
 
-bool create (const char *file, unsigned initial_size) {}
-bool remove (const char *file) {}
-int open (const char *file) {}
-int filesize (int fd) {}
-int read (int fd, void *buffer, unsigned size) {}
-int write (int fd, const void *buffer, unsigned size){
-	/*
-	Pseudo code for Write system call()
-	case SYS_WRITE:
-	{ 
-		 get_arg(f, &arg[0], 3);
-		 check_valid_buffer((void *) arg[1], (unsigned) arg[2]);
-		 arg[1] = user_to_kernel_ptr((const void *) arg[1]);
-		 f->eax = write(arg[0], (const void *) arg[1],
-				(unsigned) arg[2]);
-		 break;
-	}
-	*/
+bool create (const char *file, unsigned initial_size)
+{
+  lock_acquire(&file_lock);
+  bool success = file_create(file, initial_size);
+  lock_release(&file_lock);
+  return success;
 }
-void seek (int fd, unsigned position) {}
-unsigned tell (int fd) {}
-void close (int fd) {}
+
+bool remove (const char *file)
+{
+  lock_acquire(&file_lock);
+  bool success = file_remove(file);
+  lock_release(&file_lock);
+  return success;
+}
+
+int open (const char *file)
+{
+  lock_acquire(&file_lock);
+  struct file *f = file_open(file);
+  if (!f)
+    {
+      lock_release(&file_lock);
+      return ERROR;
+    }
+  int fd = process_add_file(f);
+  lock_release(&file_lock);
+  return fd;
+}
+
+int filesize (int fd)
+{
+  lock_acquire(&file_lock);
+  struct file *f = process_get_file(fd);
+  if (!f)
+    {
+      lock_release(&file_lock);
+      return ERROR;
+    }
+  int size = file_length(f);
+  lock_release(&file_lock);
+  return size;
+}
+
+int read (int fd, void *buffer, unsigned size)
+{
+  if (fd == STDIN_FILENO)
+    {
+      unsigned i;
+      uint8_t* local_buffer = (uint8_t *) buffer;
+      for (i = 0; i < size; i++)
+  {
+    local_buffer[i] = input_getc();
+  }
+      return size;
+    }
+  lock_acquire(&file_lock);
+  struct file *f = process_get_file(fd);
+  if (!f)
+    {
+      lock_release(&file_lock);
+      return ERROR;
+    }
+  int bytes = file_read(f, buffer, size);
+  lock_release(&file_lock);
+  return bytes;
+}
+
+int write (int fd, const void *buffer, unsigned size)
+{
+  if (fd == STDOUT_FILENO)
+    {
+      putbuf(buffer, size);
+      return size;
+    }
+  lock_acquire(&file_lock);
+  struct file *f = process_get_file(fd);
+  if (!f)
+    {
+      lock_release(&file_lock);
+      return ERROR;
+    }
+  int bytes = file_write(f, buffer, size);
+  lock_release(&file_lock);
+  return bytes;
+}
+
+void seek (int fd, unsigned position)
+{
+  lock_acquire(&file_lock);
+  struct file *f = process_get_file(fd);
+  if (!f)
+    {
+      lock_release(&file_lock);
+      return;
+    }
+  file_seek(f, position);
+  lock_release(&file_lock);
+}
+
+unsigned tell (int fd)
+{
+  lock_acquire(&file_lock);
+  struct file *f = process_get_file(fd);
+  if (!f)
+    {
+      lock_release(&file_lock);
+      return ERROR;
+    }
+  off_t offset = file_tell(f);
+  lock_release(&file_lock);
+  return offset;
+}
+
+void close (int fd)
+{
+  lock_acquire(&file_lock);
+  process_close_file(fd);
+  lock_release(&file_lock);
+}
 
 static void
 syscall_handler (struct intr_frame *f)
