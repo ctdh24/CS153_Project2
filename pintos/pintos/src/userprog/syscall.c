@@ -3,6 +3,18 @@
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+// $bunch of includes
+#include <syscall-nr.h>
+#include <user/syscall.h>
+#include "devices/input.h"
+#include "devices/shutdown.h"
+#include "filesys/file.h"
+#include "filesys/filesys.h"
+#include "threads/malloc.h"
+#include "threads/synch.h"
+#include "threads/vaddr.h"
+#include "userprog/pagedir.h"
+#include "userprog/process.h"
 
 static void syscall_handler (struct intr_frame *);
 
