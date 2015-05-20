@@ -17,6 +17,11 @@
 #include "userprog/process.h"
 
 static void syscall_handler (struct intr_frame *);
+int user_to_kernel_ptr(const void *vaddr);
+void get_arg (struct intr_frame *f, int *arg, int n);
+void check_valid_ptr (const void *vaddr);
+void check_valid_buffer (void* buffer, unsigned size);
+void check_valid_string (const void* str);
 
 void
 syscall_init (void) 
@@ -179,6 +184,25 @@ syscall_handler (struct intr_frame *f)
   break;
       }
     }
+}
+
+void check_valid_ptr (const void *vaddr)
+{
+  if (!is_user_vaddr(vaddr) || vaddr < USER_VADDR_BOTTOM)
+    {
+      exit(ERROR);
+    }
+}
+
+int user_to_kernel_ptr(const void *vaddr)
+{
+  check_valid_ptr(vaddr);
+  void *ptr = pagedir_get_page(thread_current()->pagedir, vaddr);
+  if (!ptr)
+    {
+      exit(ERROR);
+    }
+  return (int) ptr;
 }
 
 struct child_process* add_child_process (int pid)
