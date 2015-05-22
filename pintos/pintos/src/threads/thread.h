@@ -101,16 +101,15 @@ struct thread
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
 
-    // $List of files accessed by each thread
+    // Needed for file system sys calls
     struct list file_list;
-    // $File descriptor
     int fd;
-    // $List of children each thread has and accessed during wait/exec
+
+    // Needed for wait / exec sys calls
     struct list child_list;
-    // $Thread ID of this thread's parent
     tid_t parent;
-    // $Pointer to child_process struct for each thread's child list
-    struct child_process* child;
+    // Points to child_process struct in parent's child list
+    struct child_process* cp;
   };
 
 /* If false (default), use round-robin scheduler.
@@ -149,5 +148,6 @@ void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
-bool thread_live(int);
+bool thread_alive (int pid);
+
 #endif /* threads/thread.h */

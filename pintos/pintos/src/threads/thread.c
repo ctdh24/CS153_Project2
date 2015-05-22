@@ -7,15 +7,13 @@
 #include "threads/flags.h"
 #include "threads/interrupt.h"
 #include "threads/intr-stubs.h"
+#include "threads/malloc.h"
 #include "threads/palloc.h"
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
 #ifdef USERPROG
 #include "userprog/process.h"
-
-// $malloc and syscall are needed
-#include "threads/malloc.h"
 #include "userprog/syscall.h"
 #endif
 
@@ -23,6 +21,9 @@
    Used to detect stack overflow.  See the big comment at the top
    of thread.h for details. */
 #define THREAD_MAGIC 0xcd6abf4b
+
+#define MIN_FD 2
+#define NO_PARENT -1
 
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
@@ -208,12 +209,12 @@ thread_create (const char *name, int priority,
   sf->eip = switch_entry;
   sf->ebp = 0;
 
-  // $If the thread was successfully, set exec's success to true
+  intr_set_level (old_level);
 
-  // $Add child process to child list
+  // Add child process to child list
   t->parent = thread_tid();
   struct child_process *cp = add_child_process(t->tid);
-  t->child = cp;
+  t->cp = cp;
 
   /* Add to run queue. */
   thread_unblock (t);
@@ -481,11 +482,11 @@ init_thread (struct thread *t, const char *name, int priority)
   list_push_back (&all_list, &t->allelem);
 
   list_init(&t->file_list);
-  // $Set File Descriptor to a FIXED value for now
-  t->fd = 2;
+  t->fd = MIN_FD;
+
   list_init(&t->child_list);
-  t->child = NULL;
-  t->parent = -1;
+  t->cp = NULL;
+  t->parent = NO_PARENT;
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and
@@ -597,20 +598,23 @@ allocate_tid (void)
 
   return tid;
 }
-
+
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
 
-bool thread_live(int pid){
+bool thread_alive (int pid)
+{
   struct list_elem *e;
-  // $Return true if parameter PID exists in the list of all threads
-  for (e = list_begin (&all_list); e != list_end (&all_list); e = list_next (e)){
+
+  for (e = list_begin (&all_list); e != list_end (&all_list);
+       e = list_next (e))
+    {
       struct thread *t = list_entry (e, struct thread, allelem);
-      if (t->tid == pid){
-        return true;
-      }
+      if (t->tid == pid)
+  {
+    return true;
   }
+    }
   return false;
 }
-
