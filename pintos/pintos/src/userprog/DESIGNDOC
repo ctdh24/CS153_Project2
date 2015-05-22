@@ -42,6 +42,17 @@ thread.c
 	// $Child list pointer so we can get to it
 	struct child_process* child;
 
+process.c
+	// $Pass in file_name and strtok_r iterator for it so we can parse arguments
+	static bool
+	setup_stack (void **esp, const char* file_name, char** save_ptr)
+
+	// $Add file to process file_list
+	int process_add_file(struct file*);
+	// $Return the requested file in the current thread
+	struct file* process_get_file(int);
+	// $Close the requested  file in the current thread
+	void process_close_file(int);
 
 ---- ALGORITHMS ----
 

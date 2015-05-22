@@ -20,9 +20,6 @@
 
 struct lock filesys_lock;
 
-int process_add_file (struct file *f);
-struct file* process_get_file (int fd);
-
 static void syscall_handler (struct intr_frame *);
 int user_to_kernel_ptr(const void *vaddr);
 
@@ -41,7 +38,7 @@ void halt (void)
 void exit (int status)
 {
   struct thread *cur = thread_current();
-  if (thread_alive(cur->parent))
+  if (thread_live(cur->parent))
     {
       cur->child->status = status;
     }
@@ -52,7 +49,7 @@ void exit (int status)
 pid_t exec (const char *cmd_line)
 {
   pid_t pid = process_execute(cmd_line);
-  struct child_process* cp = get_child_process(pid);
+  struct child_process* cp = get_child(pid);
   ASSERT(cp);
   while (cp->load == NOT_LOADED)
     {
@@ -293,7 +290,7 @@ int user_to_kernel_ptr(const void *vaddr)
   return (int) ptr;
 }
 
-struct child_process* add_child_process (int pid)
+struct child_process* add_child (int pid)
 {
   struct child_process* cp = malloc(sizeof(struct child_process));
   cp->pid = pid;
@@ -306,7 +303,7 @@ struct child_process* add_child_process (int pid)
   return cp;
 }
 
-struct child_process* get_child_process (int pid)
+struct child_process* get_child (int pid)
 {
   struct thread *t = thread_current();
   struct list_elem *e;

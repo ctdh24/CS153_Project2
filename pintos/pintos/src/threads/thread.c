@@ -25,7 +25,7 @@
    of thread.h for details. */
 #define THREAD_MAGIC 0xcd6abf4b
 
-#define MININUM_FD 2
+#define MINIMUM_FD 2
 #define PARENT_MISSING -1
 
 /* List of processes in THREAD_READY state, that is, processes
@@ -610,7 +610,7 @@ uint32_t thread_stack_ofs = offsetof (struct thread, stack);
 
 
 // $Return true if thread is alive, false otherwise
-bool thread_alive (int pid)
+bool thread_live (int pid)
 {
   struct list_elem *e;
   for (e = list_begin (&all_list); e != list_end (&all_list); e = list_next (e)){

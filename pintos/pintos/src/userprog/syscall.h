@@ -20,8 +20,8 @@ struct child_process {
   struct list_elem elem;
 };
 
-struct child_process* add_child_process (int pid);
-struct child_process* get_child_process (int pid);
+struct child_process* add_child (int pid);
+struct child_process* get_child (int pid);
 void remove_child_process (struct child_process *cp);
 void remove_child_processes (void);
 

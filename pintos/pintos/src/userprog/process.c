@@ -14,13 +14,17 @@
 #include "threads/flags.h"
 #include "threads/init.h"
 #include "threads/interrupt.h"
-#include "threads/malloc.h"
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+
+// $Added possibly needed files
+#include "threads/malloc.h"
 #include "userprog/syscall.h"
 
 static thread_func start_process NO_RETURN;
+
+// $Changed load function to accept iterator for use in strtok_r
 static bool load (const char *cmdline, void (**eip) (void), void **esp, char** progress_ptr);
 
 struct exec_helper{
@@ -37,6 +41,7 @@ struct exec_helper{
 tid_t
 process_execute (const char *file_name) 
 {
+  // $Despite TA advice, this function seems to work fine with some modifications
   char *fn_copy;
   tid_t tid;
 
@@ -47,7 +52,7 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
-  // Get parsed file name
+  // $Get parsed file name
   char *save_ptr;
   file_name = strtok_r((char *) file_name, " ", &save_ptr);
 
@@ -67,7 +72,7 @@ start_process (void *file_name_)
   struct intr_frame if_;
   bool success;
 
-  // Get actual file name (first parsed token)
+  // $Parse first token in file_name
   char *save_ptr;
   file_name = strtok_r(file_name, " ", &save_ptr);
 
@@ -76,15 +81,13 @@ start_process (void *file_name_)
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  success = load (file_name, &if_.eip, &if_.esp, &save_ptr);
-  if (success)
-    {
-      thread_current()->child->load = LOAD_SUCCESS;
-    }
+
+  // $Load file into memory and store its success status for reference
+  success = load(file_name, &if_.eip, &if_.esp, &save_ptr);
+  if(success)
+    thread_current()->child->load = LOAD_SUCCESS;
   else
-    {
-      thread_current()->child->load = LOAD_FAIL;
-    }
+    thread_current()->child->load = LOAD_FAIL;
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
@@ -113,20 +116,12 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  struct child_process* cp = get_child_process(child_tid);
-  if (!cp)
-    {
-      return ERROR;
-    }
-  if (cp->wait)
-    {
-      return ERROR;
-    }
+  struct child_process* cp = get_child(child_tid);
+  if (!cp || cp->wait)
+    return ERROR;
   cp->wait = true;
   while (!cp->exit)
-    {
-      barrier();
-    }
+    barrier();
   int status = cp->status;
   remove_child_process(cp);
   return status;
@@ -136,20 +131,19 @@ process_wait (tid_t child_tid UNUSED)
 void
 process_exit (void)
 {
-  struct thread *cur = thread_current ();
+  struct thread *cur = thread_current();
   uint32_t *pd;
 
-  // Close all files opened by process
+  // $Clean up file list
   process_close_file(CLOSE_ALL);
 
-  // Free child list
+  // $Clean up children
   remove_child_processes();
 
-  // Set exit value to true in case killed by the kernel
-  if (thread_alive(cur->parent))
-    {
-      cur->child->exit = true;
-    }
+  // $Exit = true if kernel kills
+  if(thread_live(cur->parent)){
+    cur->child->exit = true;
+  }
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -248,25 +242,23 @@ struct Elf32_Phdr
 #define PF_W 2          /* Writable. */
 #define PF_R 4          /* Readable. */
 
-// Used for setup_stack
-#define WORD_SIZE 4
-#define DEFAULT_ARGV 2
+// $Max argv size
+#define ARGV_SIZE 2
 
-static bool setup_stack (void **esp, const char* file_name,
-       char** save_ptr);
 static bool validate_segment (const struct Elf32_Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
                           bool writable);
+
+// $setup_stack used in load
+static bool setup_stack (void **esp, const char* file_name, char** save_ptr);
 
 /* Loads an ELF executable from FILE_NAME into the current thread.
    Stores the executable's entry point into *EIP
    and its initial stack pointer into *ESP.
    Returns true if successful, false otherwise. */
 bool
-load (const char *file_name, void (**eip) (void), void **esp,
-      char **save_ptr) 
-{
+load (const char *file_name, void (**eip) (void), void **esp, char **save_ptr){
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
   struct file *file = NULL;
@@ -361,6 +353,7 @@ load (const char *file_name, void (**eip) (void), void **esp,
     }
 
   /* Set up stack. */
+  // $give setup_stack new arguments
   if (!setup_stack (esp, file_name, save_ptr))
     goto done;
 
@@ -485,69 +478,68 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
+// $pass in file_name and strtok_r iterator for it so we can parse arguments
 static bool
-setup_stack (void **esp, const char* file_name, char** save_ptr) 
-{
+setup_stack (void **esp, const char* file_name, char** save_ptr){
   uint8_t *kpage;
   bool success = false;
 
-  kpage = palloc_get_page (PAL_USER | PAL_ZERO);
-  if (kpage != NULL) 
-    {
-      success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
-      if (success)
-        *esp = PHYS_BASE;
-      else
-  {
-    palloc_free_page (kpage);
-    return success;
-  }
+  // $Call install_page on a palloced kpage, and make sure it's successful, else get out
+  kpage = palloc_get_page(PAL_USER | PAL_ZERO);
+  if(kpage != NULL){
+    success = install_page(((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
+    if(success)
+      *esp = PHYS_BASE;
+    else{
+      palloc_free_page (kpage);
+      return success;
     }
+  }
 
+  // $Variables used for allocating memory  
   char *token;
-  char **argv = malloc(DEFAULT_ARGV*sizeof(char *));
-  int i, argc = 0, argv_size = DEFAULT_ARGV;
+  char **argv = malloc(ARGV_SIZE*sizeof(char *));
+  int i;
+  int argc = 0;
+  int argv_size = ARGV_SIZE;
 
-  // Push args onto stack
-  for (token = (char *) file_name; token != NULL;
-       token = strtok_r (NULL, " ", save_ptr))
-    {
-      *esp -= strlen(token) + 1;
-      argv[argc] = *esp;
-      argc++;
-      // Resize argv
-      if (argc >= argv_size)
-  {
-    argv_size *= 2;
-    argv = realloc(argv, argv_size*sizeof(char *));
+  // $Iterate through file_name and push it to stack
+  for (token = (char *) file_name; token != NULL; token = strtok_r (NULL, " ", save_ptr)){
+    *esp -= strlen(token) + 1;
+    argv[argc] = *esp;
+    argc++;
+    // $Resize if necessary
+    if (argc >= argv_size){
+      argv_size *= 2;
+      argv = realloc(argv, argv_size*sizeof(char *));
+    }
+    memcpy(*esp, token, strlen(token) + 1);
   }
-      memcpy(*esp, token, strlen(token) + 1);
-    }
   argv[argc] = 0;
-  // Align to word size (4 bytes)
-  i = (size_t) *esp % WORD_SIZE;
-  if (i)
-    {
-      *esp -= i;
-      memcpy(*esp, &argv[argc], i);
-    }
-  // Push argv[i] for all i
-  for (i = argc; i >= 0; i--)
-    {
-      *esp -= sizeof(char *);
-      memcpy(*esp, &argv[i], sizeof(char *));
-    }
-  // Push argv
+
+  // $Make sure i matches with the word size of 4 bytes
+  i = (size_t) *esp % 4;
+  if (i){
+    *esp -= i;
+    memcpy(*esp, &argv[argc], i);
+  }
+  // $Push argv array
+  for (i = argc; i >= 0; i--){
+    *esp -= sizeof(char *);
+    memcpy(*esp, &argv[i], sizeof(char *));
+  }
+
+  // $Argv
   token = *esp;
   *esp -= sizeof(char **);
   memcpy(*esp, &token, sizeof(char **));
-  // Push argc
+  // $Argc
   *esp -= sizeof(int);
   memcpy(*esp, &argc, sizeof(int));
-  // Push fake return addr
+  // $Fake return address
   *esp -= sizeof(void *);
   memcpy(*esp, &argv[argc], sizeof(void *));
-  // Free argv
+  // $Free argv
   free(argv);
 
   return success;
@@ -603,58 +595,53 @@ push (uint8_t *kpage, size_t *ofs, const void *buf, size_t size)
   return kpage + *ofs + (padsize - size);
 }
 
+// $Add file to process file_list
 int process_add_file (struct file *f)
 {
   struct process_file *pf = malloc(sizeof(struct process_file));
+  
   if (!pf)
-    {
       return -1;
-    }
   pf->file = f;
   pf->fd = thread_current()->fd;
-  thread_current()->fd++;
+  fd++;
+  thread_current()->fd;
   list_push_back(&thread_current()->file_list, &pf->elem);
   return pf->fd;
 }
 
+// $Return the requested file in the current thread
 struct file* process_get_file (int fd)
 {
   struct thread *t = thread_current();
   struct list_elem *e;
 
-  for (e = list_begin (&t->file_list); e != list_end (&t->file_list);
-       e = list_next (e))
-        {
-          struct process_file *pf = list_entry (e, struct process_file, elem);
-          if (fd == pf->fd)
-      {
-        return pf->file;
-      }
-        }
+  for(e = list_begin(&t->file_list); e != list_end(&t->file_list); e = list_next(e)){
+    struct process_file *pf = list_entry(e, struct process_file, elem);
+    if(fd == pf->fd)
+      return pf->file;
+  }
   return NULL;
 }
 
+// $Close the requested  file in the current thread
 void process_close_file (int fd)
 {
   struct thread *t = thread_current();
-  struct list_elem *next, *e = list_begin(&t->file_list);
-
-  while (e != list_end (&t->file_list))
-    {
-      next = list_next(e);
-      struct process_file *pf = list_entry (e, struct process_file, elem);
-      if (fd == pf->fd || fd == -1)
-  {
-    file_close(pf->file);
-    list_remove(&pf->elem);
-    free(pf);
-    if (fd != -1)
-      {
+  struct list_elem *next;
+  struct list_elem *e = list_begin(&t->file_list);
+  while (e != list_end (&t->file_list)){
+    next = list_next(e);
+    struct process_file *pf = list_entry (e, struct process_file, elem);
+    if (fd == pf->fd || fd == -1){
+      file_close(pf->file);
+      list_remove(&pf->elem);
+      free(pf);
+      if (fd != -1)
         return;
-      }
-  }
-      e = next;
     }
+  e = next;
+  }
 }
 
 
