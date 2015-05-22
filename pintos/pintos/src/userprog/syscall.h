@@ -3,18 +3,15 @@
 
 #include "threads/synch.h"
 
-struct lock file_lock;
+struct lock filesys_lock;
 
 struct child_process {
   int pid;
-  int status;
   int load;
-
   bool wait;
   bool exit;
-  
-  struct semaphore load_sema;
-  struct semaphore exit_sema;
+  int status;
+  struct lock wait_lock;
   struct list_elem elem;
 };
 

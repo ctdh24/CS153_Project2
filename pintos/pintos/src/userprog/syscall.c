@@ -22,20 +22,23 @@ int user_to_kernel_ptr(const void *vaddr);
 void
 syscall_init (void) 
 {
-  lock_init(&file_lock);
+  lock_init(&filesys_lock);
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
-void halt (void){
+void halt (void)
+{
   shutdown_power_off();
 }
 
-void exit (int status){ 
-  struct thread *t = thread_current();
-  if (thread_live(t->parent) && t->child){
-      t->child->status = status;
-  }
-  printf("%s: exit(%d)\n", t->name, status);
+void exit (int status)
+{
+  struct thread *cur = thread_current();
+  if (thread_alive(cur->parent))
+    {
+      cur->cp->status = status;
+    }
+  printf ("%s: exit(%d)\n", cur->name, status);
   thread_exit();
 }
 
@@ -44,12 +47,13 @@ pid_t exec (const char *cmd_line)
   pid_t pid = process_execute(cmd_line);
   struct child_process* cp = get_child_process(pid);
   ASSERT(cp);
-  while(cp->load == 0){
-    barrier();
-  }
-  if (cp->load == 2)
+  while (cp->load == NOT_LOADED)
     {
-      return -1;
+      barrier();
+    }
+  if (cp->load == LOAD_FAIL)
+    {
+      return ERROR;
     }
   return pid;
 }
@@ -61,45 +65,45 @@ int wait (pid_t pid)
 
 bool create (const char *file, unsigned initial_size)
 {
-  lock_acquire(&file_lock);
+  lock_acquire(&filesys_lock);
   bool success = filesys_create(file, initial_size);
-  lock_release(&file_lock);
+  lock_release(&filesys_lock);
   return success;
 }
 
 bool remove (const char *file)
 {
-  lock_acquire(&file_lock);
+  lock_acquire(&filesys_lock);
   bool success = filesys_remove(file);
-  lock_release(&file_lock);
+  lock_release(&filesys_lock);
   return success;
 }
 
 int open (const char *file)
 {
-  lock_acquire(&file_lock);
+  lock_acquire(&filesys_lock);
   struct file *f = filesys_open(file);
   if (!f)
     {
-      lock_release(&file_lock);
-      return -1;
+      lock_release(&filesys_lock);
+      return ERROR;
     }
   int fd = process_add_file(f);
-  lock_release(&file_lock);
+  lock_release(&filesys_lock);
   return fd;
 }
 
 int filesize (int fd)
 {
-  lock_acquire(&file_lock);
+  lock_acquire(&filesys_lock);
   struct file *f = process_get_file(fd);
   if (!f)
     {
-      lock_release(&file_lock);
-      return -1;
+      lock_release(&filesys_lock);
+      return ERROR;
     }
   int size = file_length(f);
-  lock_release(&file_lock);
+  lock_release(&filesys_lock);
   return size;
 }
 
@@ -115,15 +119,15 @@ int read (int fd, void *buffer, unsigned size)
   }
       return size;
     }
-  lock_acquire(&file_lock);
+  lock_acquire(&filesys_lock);
   struct file *f = process_get_file(fd);
   if (!f)
     {
-      lock_release(&file_lock);
-      return -1;
+      lock_release(&filesys_lock);
+      return ERROR;
     }
   int bytes = file_read(f, buffer, size);
-  lock_release(&file_lock);
+  lock_release(&filesys_lock);
   return bytes;
 }
 
@@ -134,57 +138,57 @@ int write (int fd, const void *buffer, unsigned size)
       putbuf(buffer, size);
       return size;
     }
-  lock_acquire(&file_lock);
+  lock_acquire(&filesys_lock);
   struct file *f = process_get_file(fd);
   if (!f)
     {
-      lock_release(&file_lock);
-      return -1;
+      lock_release(&filesys_lock);
+      return ERROR;
     }
   int bytes = file_write(f, buffer, size);
-  lock_release(&file_lock);
+  lock_release(&filesys_lock);
   return bytes;
 }
 
 void seek (int fd, unsigned position)
 {
-  lock_acquire(&file_lock);
+  lock_acquire(&filesys_lock);
   struct file *f = process_get_file(fd);
   if (!f)
     {
-      lock_release(&file_lock);
+      lock_release(&filesys_lock);
       return;
     }
   file_seek(f, position);
-  lock_release(&file_lock);
+  lock_release(&filesys_lock);
 }
 
 unsigned tell (int fd)
 {
-  lock_acquire(&file_lock);
+  lock_acquire(&filesys_lock);
   struct file *f = process_get_file(fd);
   if (!f)
     {
-      lock_release(&file_lock);
-      return -1;
+      lock_release(&filesys_lock);
+      return ERROR;
     }
   off_t offset = file_tell(f);
-  lock_release(&file_lock);
+  lock_release(&filesys_lock);
   return offset;
 }
 
 void close (int fd)
 {
-  lock_acquire(&file_lock);
+  lock_acquire(&filesys_lock);
   process_close_file(fd);
-  lock_release(&file_lock);
+  lock_release(&filesys_lock);
 }
 
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
-  int i, arg[4];
-  for (i = 0; i < 4; i++)
+  int i, arg[MAX_ARGS];
+  for (i = 0; i < MAX_ARGS; i++)
     {
       arg[i] = * ((int *) f->esp + i);
     }
@@ -267,30 +271,32 @@ syscall_handler (struct intr_frame *f UNUSED)
 
 int user_to_kernel_ptr(const void *vaddr)
 {
-  if(!is_user_vaddr(vaddr)){
-    thread_exit();
-    return 0;
-  }
-  void *ptr = pagedir_get_page(thread_current()->pagedir, vaddr);
-  if (!ptr){
+  // TO DO: Need to check if all bytes within range are correct
+  if (!is_user_vaddr(vaddr))
+    {
       thread_exit();
-     return 0;
-  }
+      return 0;
+    }
+  void *ptr = pagedir_get_page(thread_current()->pagedir, vaddr);
+  if (!ptr)
+    {
+      thread_exit();
+      return 0;
+    }
   return (int) ptr;
 }
 
 struct child_process* add_child_process (int pid)
 {
-  struct child_process* child = malloc(sizeof(struct child_process));
-  if (!child){
-    return NULL;
-  }
-  child->pid = pid;
-  child->load = 0; // $FIXED load failure = 0
-  child->wait = false;
-  child->exit = false;
-  list_push_back(&thread_current()->child_list, &child->elem);
-  return child;
+  struct child_process* cp = malloc(sizeof(struct child_process));
+  cp->pid = pid;
+  cp->load = NOT_LOADED;
+  cp->wait = false;
+  cp->exit = false;
+  lock_init(&cp->wait_lock);
+  list_push_back(&thread_current()->child_list,
+     &cp->elem);
+  return cp;
 }
 
 struct child_process* get_child_process (int pid)
@@ -298,12 +304,15 @@ struct child_process* get_child_process (int pid)
   struct thread *t = thread_current();
   struct list_elem *e;
 
-  for (e = list_begin (&t->child_list); e != list_end (&t->child_list); e = list_next (e)){
-    struct child_process *child = list_entry(e, struct child_process, elem);
-    if (pid == child->pid){
-      return child;
-    }
-  }
+  for (e = list_begin (&t->child_list); e != list_end (&t->child_list);
+       e = list_next (e))
+        {
+          struct child_process *cp = list_entry (e, struct child_process, elem);
+          if (pid == cp->pid)
+      {
+        return cp;
+      }
+        }
   return NULL;
 }
 
