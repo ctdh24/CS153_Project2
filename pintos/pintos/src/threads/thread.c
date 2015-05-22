@@ -216,7 +216,7 @@ thread_create (const char *name, int priority,
 
   // $Add to child process list
   t->parent = thread_tid();
-  struct child_process *cp = add_child_process(t->tid);
+  struct child_process *cp = add_child(t->tid);
   t->child = cp;
 
   /* Add to run queue. */
