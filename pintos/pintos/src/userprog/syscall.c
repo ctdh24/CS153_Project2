@@ -18,12 +18,6 @@
 
 #define USER_VADDR_BOTTOM ((void *) 0x08048000)
 
-struct process_file{
-  struct file *file;
-  int fd;
-  struct list_elem elem;
-};
-
 int process_add_file(struct file *f);
 struct file* process_get_file(int fd);
 
@@ -59,13 +53,11 @@ pid_t exec (const char *cmd_line)
     {
       return -1;
     }
-  if (cp->load == 0)
-    {
-      sema_down(&cp->load_sema);
-    }
+  while(!cp->load){
+    barrier();
+  }
   if (cp->load == 2)
     {
-      remove_child_process(cp);
       return -1;
     }
   return pid;
@@ -314,22 +306,13 @@ syscall_handler (struct intr_frame *f)
     }
 }
 
-void check_valid_ptr (const void *vaddr)
-{
-  if (!is_user_vaddr(vaddr) || vaddr < USER_VADDR_BOTTOM)
-    {
-      exit(-1);
-    }
-}
-
 int user_to_kernel_ptr(const void *vaddr)
 {
-  check_valid_ptr(vaddr);
   void *ptr = pagedir_get_page(thread_current()->pagedir, vaddr);
-  if (!ptr)
-    {
-      exit(-1);
-    }
+  if (!ptr || !is_user_vaddr(vaddr)){
+      thread_exit();
+     return 0;
+  }
   return (int) ptr;
 }
 
@@ -343,8 +326,6 @@ struct child_process* add_child_process (int pid)
   child->load = 0; // $FIXED load failure = 0
   child->wait = false;
   child->exit = false;
-  sema_init(&child->load_sema, 0);
-  sema_init(&child->exit_sema, 0);
   list_push_back(&thread_current()->child_list, &child->elem);
   return child;
 }
@@ -382,36 +363,5 @@ void remove_child_processes (void)
       list_remove(&cp->elem);
       free(cp);
       e = next;
-    }
-}
-
-void get_arg (struct intr_frame *f, int *arg, int n)
-{
-  int i;
-  int *ptr;
-  for (i = 0; i < n; i++)
-    {
-      ptr = (int *) f->esp + i + 1;
-      check_valid_ptr((const void *) ptr);
-      arg[i] = *ptr;
-    }
-}
-
-void check_valid_buffer (void* buffer, unsigned size)
-{
-  unsigned i;
-  char* local_buffer = (char *) buffer;
-  for (i = 0; i < size; i++)
-    {
-      check_valid_ptr((const void*) local_buffer);
-      local_buffer++;
-    }
-}
-
-void check_valid_string (const void* str)
-{
-  while (* (char *) user_to_kernel_ptr(str) != 0)
-    {
-      str = (char *) str + 1;
     }
 }
