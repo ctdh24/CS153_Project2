@@ -135,7 +135,7 @@ process_exit (void)
   uint32_t *pd;
 
   // $Clean up file list
-  process_close_file(CLOSE_ALL);
+  process_close_file(-1);
 
   // $Clean up children
   remove_child_processes();
@@ -604,8 +604,7 @@ int process_add_file (struct file *f)
       return -1;
   pf->file = f;
   pf->fd = thread_current()->fd;
-  fd++;
-  thread_current()->fd;
+  thread_current()->fd++;
   list_push_back(&thread_current()->file_list, &pf->elem);
   return pf->fd;
 }

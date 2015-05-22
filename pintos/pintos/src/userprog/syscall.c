@@ -3,7 +3,7 @@
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
-// $bunch of includes
+// $Bunch of includes that MAY be used
 #include <syscall-nr.h>
 #include <user/syscall.h>
 #include "devices/input.h"
