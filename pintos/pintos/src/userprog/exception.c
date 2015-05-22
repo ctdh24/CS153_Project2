@@ -4,6 +4,7 @@
 #include "userprog/gdt.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "user/syscall.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -104,7 +105,8 @@ kill (struct intr_frame *f)
          kernel. */
       printf ("Interrupt %#04x (%s) in unknown segment %04x\n",
              f->vec_no, intr_name (f->vec_no), f->cs);
-      thread_exit ();
+      //thread_exit ();
+	  exit(-1);
     }
 }
 
