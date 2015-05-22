@@ -192,8 +192,8 @@ void close (int fd)
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
-  int i, arg[MAX_ARGS];
-  for (i = 0; i < MAX_ARGS; i++)
+  int i, arg[4];
+  for (i = 0; i < 4; i++)
     {
       arg[i] = * ((int *) f->esp + i);
     }
