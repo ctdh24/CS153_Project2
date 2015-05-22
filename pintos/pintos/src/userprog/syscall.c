@@ -190,28 +190,14 @@ void close (int fd)
 }
 
 static void
-syscall_handler (struct intr_frame *f)
-{/*
-	unsigned callNum;
-	int args[3];
-	int numOfArgs;
-	
-	//##Get syscall number
-	copy_in (&call_nr, f->esp, sizeof callNum);
-
-	//##Using the number find out which system call is being used
-	numOfArgs = number of args that system call uses {0,1,2,3}
-	
-	
-	copy_in (args, (uint32_t *) f->esp + 1, sizeof *args * numOfArgs);
-	
-	//##Use switch statement or something and run this below for each
-	//##Depending on the callNum...
-	f->eax = desired_sys_call_fun (args[0], args[1], args[2]);
-*/
-  int arg[3];
-  int esp = user_to_kernel_ptr((const void*) f->esp);
-  switch (* (int *) esp)
+syscall_handler (struct intr_frame *f UNUSED) 
+{
+  int i, arg[MAX_ARGS];
+  for (i = 0; i < MAX_ARGS; i++)
+    {
+      arg[i] = * ((int *) f->esp + i);
+    }
+  switch (arg[0])
     {
     case SYS_HALT:
       {
@@ -220,89 +206,71 @@ syscall_handler (struct intr_frame *f)
       }
     case SYS_EXIT:
       {
-  get_arg(f, &arg[0], 1);
-  exit(arg[0]);
+  exit(arg[1]);
   break;
       }
     case SYS_EXEC:
       {
-  get_arg(f, &arg[0], 1);
-  check_valid_string((const void *) arg[0]);
-  arg[0] = user_to_kernel_ptr((const void *) arg[0]);
-  f->eax = exec((const char *) arg[0]); 
+  arg[1] = user_to_kernel_ptr((const void *) arg[1]);
+  f->eax = exec((const char *) arg[1]); 
   break;
       }
     case SYS_WAIT:
       {
-  get_arg(f, &arg[0], 1);
-  f->eax = wait(arg[0]);
+  f->eax = wait(arg[1]);
   break;
       }
     case SYS_CREATE:
       {
-  get_arg(f, &arg[0], 2);
-  check_valid_string((const void *) arg[0]);
-  arg[0] = user_to_kernel_ptr((const void *) arg[0]);
-  f->eax = create((const char *)arg[0], (unsigned) arg[1]);
+  arg[1] = user_to_kernel_ptr((const void *) arg[1]);
+  f->eax = create((const char *)arg[1], (unsigned) arg[2]);
   break;
       }
     case SYS_REMOVE:
       {
-  get_arg(f, &arg[0], 1);
-  check_valid_string((const void *) arg[0]);
-  arg[0] = user_to_kernel_ptr((const void *) arg[0]);
-  f->eax = remove((const char *) arg[0]);
+  arg[1] = user_to_kernel_ptr((const void *) arg[1]);
+  f->eax = remove((const char *) arg[1]);
   break;
       }
     case SYS_OPEN:
       {
-  get_arg(f, &arg[0], 1);
-  check_valid_string((const void *) arg[0]);
-  arg[0] = user_to_kernel_ptr((const void *) arg[0]);
-  f->eax = open((const char *) arg[0]);
+  arg[1] = user_to_kernel_ptr((const void *) arg[1]);
+  f->eax = open((const char *) arg[1]);
   break;    
       }
     case SYS_FILESIZE:
       {
-  get_arg(f, &arg[0], 1);
-  f->eax = filesize(arg[0]);
+  f->eax = filesize(arg[1]);
   break;
       }
     case SYS_READ:
       {
-  get_arg(f, &arg[0], 3);
-  check_valid_buffer((void *) arg[1], (unsigned) arg[2]);
-  arg[1] = user_to_kernel_ptr((const void *) arg[1]);
-  f->eax = read(arg[0], (void *) arg[1], (unsigned) arg[2]);
+  arg[2] = user_to_kernel_ptr((const void *) arg[2]);
+  f->eax = read(arg[1], (void *) arg[2], (unsigned) arg[3]);
   break;
       }
     case SYS_WRITE:
       { 
-  get_arg(f, &arg[0], 3);
-  check_valid_buffer((void *) arg[1], (unsigned) arg[2]);
-  arg[1] = user_to_kernel_ptr((const void *) arg[1]);
-  f->eax = write(arg[0], (const void *) arg[1],
-           (unsigned) arg[2]);
+  arg[2] = user_to_kernel_ptr((const void *) arg[2]);
+  f->eax = write(arg[1], (const void *) arg[2],
+           (unsigned) arg[3]);
   break;
       }
     case SYS_SEEK:
       {
-  get_arg(f, &arg[0], 2);
-  seek(arg[0], (unsigned) arg[1]);
+  seek(arg[1], (unsigned) arg[2]);
   break;
       } 
     case SYS_TELL:
       { 
-  get_arg(f, &arg[0], 1);
-  f->eax = tell(arg[0]);
+  f->eax = tell(arg[1]);
   break;
       }
     case SYS_CLOSE:
       { 
-  get_arg(f, &arg[0], 1);
-  close(arg[0]);
+  close(arg[1]);
   break;
-      }
+      } 
     }
 }
 
