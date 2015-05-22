@@ -57,11 +57,11 @@ process_execute (const char *file_name)
   //##Add program name to thread_name, watch out for the size, strtok_r.....
   //##Program name is the first token of file_name
   char* progress_ptr;
-  file_name = strtok_r(file_name, " ", &progress_ptr);
+  file_name = strtok_r((char *)file_name, " ", &progress_ptr);
 
   //##Change file_name in thread_create to thread_name
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, exec->file_name); 
+  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   //## remove fn_copy, Add exec to the end of these params, a void is allowed. 
   //Look in thread_create, kf->aux is set to thread_create aux which would be exec. So make good use of exec helper!
   /*if (tid != TID_ERROR){   
@@ -95,8 +95,7 @@ start_process (void *file_name_)
 
   // get file name
   char* progress_ptr;
-  file_name = strtok_r(file_name, " ", progress_ptr);
-  struct thread *t = thread_current();
+  file_name = strtok_r(file_name, " ", &progress_ptr);
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
@@ -104,10 +103,9 @@ start_process (void *file_name_)
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp, &progress_ptr);
   if (success)
-    t->child->load = 1; // $FIXED load succeed = 1
+    thread_current()->child->load = 1; // $FIXED load succeed = 1
   else
-    t->child->load = 2; // $FIXED load failure = 2
-  sema_up(&t->child->load_sema);
+    thread_current()->child->load = 2; // $FIXED load failure = 2
 
   /* If load failed, quit. */
   palloc_free_page (file_name);

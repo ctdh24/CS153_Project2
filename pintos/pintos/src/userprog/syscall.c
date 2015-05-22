@@ -16,11 +16,6 @@
 #include "userprog/pagedir.h"
 #include "userprog/process.h"
 
-#define USER_VADDR_BOTTOM ((void *) 0x08048000)
-
-int process_add_file(struct file *f);
-struct file* process_get_file(int fd);
-
 static void syscall_handler (struct intr_frame *);
 int user_to_kernel_ptr(const void *vaddr);
 void get_arg (struct intr_frame *f, int *arg, int n);
@@ -49,10 +44,7 @@ pid_t exec (const char *cmd_line)
 {
   pid_t pid = process_execute(cmd_line);
   struct child_process* cp = get_child_process(pid);
-  if (!cp)
-    {
-      return -1;
-    }
+  ASSERT(cp);
   while(!cp->load){
     barrier();
   }
@@ -276,8 +268,12 @@ syscall_handler (struct intr_frame *f UNUSED)
 
 int user_to_kernel_ptr(const void *vaddr)
 {
+  if(!is_user_vaddr(vaddr)){
+    thread_exit();
+    return 0;
+  }
   void *ptr = pagedir_get_page(thread_current()->pagedir, vaddr);
-  if (!ptr || !is_user_vaddr(vaddr)){
+  if (!ptr){
       thread_exit();
      return 0;
   }
