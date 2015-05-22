@@ -30,15 +30,18 @@ Derrick Lam <dlam012@ucr.edu> <861005721>
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
-semaphore loading()
-	Lock the argv variable to eliminated race conditions 
-bool success
-	Determine if the program loaded successfully
-	
-process_execute()
-	Limit the maximum length of a command line argument to a hard cap
-	of 4KB, the size that will fit within a single page.
-	Also permit processes to be passed in arguments. 
+thread.c
+	// $File list associated with each thread
+	struct list file_list;
+	int fd;
+
+	// $Child list for each thread
+	struct list child_list;
+	// $Every thread's thread ID
+	tid_t parent;
+	// $Child list pointer so we can get to it
+	struct child_process* child;
+
 
 ---- ALGORITHMS ----
 

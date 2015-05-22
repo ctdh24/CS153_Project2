@@ -7,23 +7,26 @@
 #include "threads/flags.h"
 #include "threads/interrupt.h"
 #include "threads/intr-stubs.h"
-#include "threads/malloc.h"
 #include "threads/palloc.h"
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
 #ifdef USERPROG
 #include "userprog/process.h"
+
+// $Added includes possibly used later
+#include "threads/malloc.h"
 #include "userprog/syscall.h"
 #endif
+
 
 /* Random value for struct thread's `magic' member.
    Used to detect stack overflow.  See the big comment at the top
    of thread.h for details. */
 #define THREAD_MAGIC 0xcd6abf4b
 
-#define MIN_FD 2
-#define NO_PARENT -1
+#define MININUM_FD 2
+#define PARENT_MISSING -1
 
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
@@ -211,10 +214,10 @@ thread_create (const char *name, int priority,
 
   intr_set_level (old_level);
 
-  // Add child process to child list
+  // $Add to child process list
   t->parent = thread_tid();
   struct child_process *cp = add_child_process(t->tid);
-  t->cp = cp;
+  t->child = cp;
 
   /* Add to run queue. */
   thread_unblock (t);
@@ -393,7 +396,7 @@ thread_get_recent_cpu (void)
   /* Not yet implemented. */
   return 0;
 }
-
+
 /* Idle thread.  Executes when no other thread is ready to run.
 
    The idle thread is initially put on the ready list by
@@ -442,7 +445,7 @@ kernel_thread (thread_func *function, void *aux)
   function (aux);       /* Execute the thread function. */
   thread_exit ();       /* If function() returns, kill the thread. */
 }
-
+
 /* Returns the running thread. */
 struct thread *
 running_thread (void) 
@@ -481,12 +484,14 @@ init_thread (struct thread *t, const char *name, int priority)
   t->magic = THREAD_MAGIC;
   list_push_back (&all_list, &t->allelem);
 
+  // $Init each thread's file list
   list_init(&t->file_list);
-  t->fd = MIN_FD;
+  t->fd = MINIMUM_FD;
 
+  // $Init each thread's child list
   list_init(&t->child_list);
-  t->cp = NULL;
-  t->parent = NO_PARENT;
+  t->child = NULL;
+  t->parent = PARENT_MISSING;
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and
@@ -598,23 +603,21 @@ allocate_tid (void)
 
   return tid;
 }
-
+
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
 
+
+// $Return true if thread is alive, false otherwise
 bool thread_alive (int pid)
 {
   struct list_elem *e;
-
-  for (e = list_begin (&all_list); e != list_end (&all_list);
-       e = list_next (e))
-    {
-      struct thread *t = list_entry (e, struct thread, allelem);
-      if (t->tid == pid)
-  {
-    return true;
-  }
+  for (e = list_begin (&all_list); e != list_end (&all_list); e = list_next (e)){
+    struct thread *t = list_entry (e, struct thread, allelem);
+    if (t->tid == pid){
+      return true;
     }
+  }
   return false;
 }

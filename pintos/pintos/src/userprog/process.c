@@ -79,11 +79,11 @@ start_process (void *file_name_)
   success = load (file_name, &if_.eip, &if_.esp, &save_ptr);
   if (success)
     {
-      thread_current()->cp->load = LOAD_SUCCESS;
+      thread_current()->child->load = LOAD_SUCCESS;
     }
   else
     {
-      thread_current()->cp->load = LOAD_FAIL;
+      thread_current()->child->load = LOAD_FAIL;
     }
 
   /* If load failed, quit. */
@@ -148,7 +148,7 @@ process_exit (void)
   // Set exit value to true in case killed by the kernel
   if (thread_alive(cur->parent))
     {
-      cur->cp->exit = true;
+      cur->child->exit = true;
     }
 
   /* Destroy the current process's page directory and switch back
