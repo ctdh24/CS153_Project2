@@ -140,8 +140,8 @@ process_wait (tid_t child_tid UNUSED)
   if (!cp || cp->wait)
       return -1;  // FIXED -1 ERROR
   cp->wait = true;
-  if (!cp->exit)
-      sema_down(&cp->exit_sema);
+  while(!cp->exit)
+    barrier();
   int status = cp->status;
   remove_child_process(cp);
   return status;
@@ -153,7 +153,11 @@ process_exit (void)
 {
   struct thread *cur = thread_current ();
   uint32_t *pd;
-
+  
+  process_close_file(-1);
+  remove_child_processes();
+  if(thread_live(cur->parent))
+    cur->child->exit = true;
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
@@ -522,9 +526,6 @@ setup_stack (void **esp, const char* file_name, char** progress_ptr)
 
   char* token;
   char** argv = malloc(DEFAULT_ARGV*sizeof(char *));
-  if (!argv){
-    return false;
-  }
   int i, argc = 0, argv_size = DEFAULT_ARGV;
 
   // Push args onto stack
@@ -536,9 +537,6 @@ setup_stack (void **esp, const char* file_name, char** progress_ptr)
     if (argc >= argv_size){
       argv_size *= 2;
       argv = realloc(argv, argv_size*sizeof(char *));
-      if (!argv){
-        return false;
-      }
     }
     memcpy(*esp, token, strlen(token) + 1);
   } 
@@ -624,7 +622,7 @@ int process_add_file (struct file *f)
   struct process_file *pf = malloc(sizeof(struct process_file));
   if (!pf)
     {
-      return ERROR;
+      return -1;
     }
   pf->file = f;
   pf->fd = thread_current()->fd;
@@ -659,12 +657,12 @@ void process_close_file (int fd)
     {
       next = list_next(e);
       struct process_file *pf = list_entry (e, struct process_file, elem);
-      if (fd == pf->fd || fd == CLOSE_ALL)
+      if (fd == pf->fd || fd == -1)
   {
     file_close(pf->file);
     list_remove(&pf->elem);
     free(pf);
-    if (fd != CLOSE_ALL)
+    if (fd != -1)
       {
         return;
       }

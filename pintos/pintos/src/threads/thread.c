@@ -309,7 +309,6 @@ thread_exit (void)
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
   intr_disable ();
-  thread_unlock_all();
   list_remove (&thread_current()->allelem);
   thread_current ()->status = THREAD_DYING;
   schedule ();
@@ -483,8 +482,6 @@ init_thread (struct thread *t, const char *name, int priority)
   t->magic = THREAD_MAGIC;
   list_push_back (&all_list, &t->allelem);
 
-  t->execute = NULL;
-  list_init(&t->lock_list);
   list_init(&t->file_list);
   // $Set File Descriptor to a FIXED value for now
   t->fd = 2;
@@ -619,16 +616,3 @@ bool thread_live(int pid){
   return false;
 }
 
-void thread_unlock_all(void){
-  struct thread *t = thread_current();
-  struct list_elem *next, *e = list_begin(&t->lock_list);
-
-  /*while (e != list_end(&t->lock_list)){
-      next = list_next(e);
-      struct lock *l = list_entry(e, struct lock, elem);
-      lock_release(l);
-      list_remove(&l->elem);
-      e = next;
-    }
-  */
-}
