@@ -18,7 +18,6 @@
 
 static void syscall_handler (struct intr_frame *);
 int user_to_kernel_ptr(const void *vaddr);
-void get_arg (struct intr_frame *f, int *arg, int n);
 
 void
 syscall_init (void) 
@@ -45,7 +44,7 @@ pid_t exec (const char *cmd_line)
   pid_t pid = process_execute(cmd_line);
   struct child_process* cp = get_child_process(pid);
   ASSERT(cp);
-  while(!cp->load){
+  while(cp->load == 0){
     barrier();
   }
   if (cp->load == 2)

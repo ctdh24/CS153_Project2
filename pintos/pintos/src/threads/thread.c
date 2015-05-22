@@ -215,8 +215,6 @@ thread_create (const char *name, int priority,
   struct child_process *cp = add_child_process(t->tid);
   t->child = cp;
 
-  intr_set_level (old_level);
-
   /* Add to run queue. */
   thread_unblock (t);
 

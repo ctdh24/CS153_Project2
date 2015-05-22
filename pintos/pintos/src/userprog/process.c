@@ -24,7 +24,7 @@ static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp, char** progress_ptr);
 
 struct exec_helper{
-  const char* file_name;            //## Program to load (entire command line)
+  const char *file_name;            //## Program to load (entire command line)
   bool success;                     //##Add bool for determining if program loaded successfully
   struct semaphore* load;            //##Add semaphore for loading (for resource race cases!)
   struct wait_status* wait_status;  //## Add other stuff you need to transfer between process_execute and process_start 
@@ -56,7 +56,7 @@ process_execute (const char *file_name)
 
   //##Add program name to thread_name, watch out for the size, strtok_r.....
   //##Program name is the first token of file_name
-  char* progress_ptr;
+  char *progress_ptr;
   file_name = strtok_r((char *)file_name, " ", &progress_ptr);
 
   //##Change file_name in thread_create to thread_name
@@ -135,8 +135,10 @@ int
 process_wait (tid_t child_tid UNUSED) 
 {
   struct child_process* cp = get_child_process(child_tid);
-  if (!cp || cp->wait)
+  if (!cp)
       return -1;  // FIXED -1 ERROR
+  if(cp->wait)
+    return -1;
   cp->wait = true;
   while(!cp->exit)
     barrier();
@@ -500,7 +502,6 @@ setup_stack (void **esp, const char* file_name, char** progress_ptr)
 
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   if(kpage != NULL){
-    return success;
     success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
     if (success)
       *esp = PHYS_BASE;
