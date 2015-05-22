@@ -191,7 +191,7 @@ process_activate (void)
      interrupts. */
   tss_update ();
 }
-
+
 /* We load ELF binaries.  The following definitions are taken
    from the ELF specification, [ELF1], more-or-less verbatim.  */
 
@@ -287,16 +287,6 @@ load (const char *file_name, void (**eip) (void), void **esp, char** progress_pt
   process_activate ();
 
   //## Use strtok_r to remove file_name from cmd_line
-
-  
-  
-  
-  
-  
-  
-  
-  
-  
   
   /* Open executable file. */
   file = filesys_open (file_name);  //## Set the thread's bin file to this as well! It is super helpful to have each thread have a pointer to the file they are using for when you need to close it in process_exit
@@ -393,7 +383,7 @@ load (const char *file_name, void (**eip) (void), void **esp, char** progress_pt
   file_close (file);		//##Remove this!!!!!!!!Since thread has its own file, close it when process is done (hint: in process exit.
   return success;
 }
-
+
 /* load() helpers. */
 
 static bool install_page (void *upage, void *kpage, bool writable);
@@ -511,18 +501,16 @@ setup_stack (void **esp, const char* file_name, char** progress_ptr)
   bool success = false;
 
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
-  if (!kpage)
-    {
-      return success;
-    }
-  success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
-  if (success)
-    *esp = PHYS_BASE;
-  else
-    {
+  if(kpage != NULL){
+    return success;
+    success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
+    if (success)
+      *esp = PHYS_BASE;
+    else{
       palloc_free_page(kpage);
       return success;
     }
+  }
 
   char* token;
   char** argv = malloc(DEFAULT_ARGV*sizeof(char *));
