@@ -54,6 +54,16 @@ process.c
 	// $Close the requested  file in the current thread
 	void process_close_file(int);
 
+syscall.c
+	// $Struct that helps define child processes
+	struct child_process{};
+	// $Struct that helps define locks used for files
+	struct lock file_lock;
+	// $Remove child from child list
+	void remove_child_process (struct child_process *cp)
+	// $Remove all child_processes within the current thread's child list
+	void remove_all_children (void)
+
 ---- ALGORITHMS ----
 
 >> A2: Briefly describe how you implemented argument parsing.  How do

@@ -355,36 +355,33 @@ struct child_process* get_child (int pid)
   struct thread *t = thread_current();
   struct list_elem *e;
 
-  for (e = list_begin (&t->child_list); e != list_end (&t->child_list);
-       e = list_next (e))
-        {
-          struct child_process *cp = list_entry (e, struct child_process, elem);
-          if (pid == cp->pid)
-      {
-        return cp;
-      }
-        }
+  for (e = list_begin(&t->child_list); e != list_end(&t->child_list); e = list_next(e)){
+    struct child_process *cp = list_entry(e, struct child_process, elem);
+    if (pid == cp->pid)
+      return cp;
+    }
   return NULL;
 }
 
+// $Remove child from child list
 void remove_child_process (struct child_process *cp)
 {
   list_remove(&cp->elem);
   free(cp);
 }
 
-void remove_child_processes (void)
+// $Remove all child_processes within the current thread's child list
+void remove_all_children (void)
 {
   struct thread *t = thread_current();
   struct list_elem *next, *e = list_begin(&t->child_list);
 
-  while (e != list_end (&t->child_list))
-    {
-      next = list_next(e);
-      struct child_process *cp = list_entry (e, struct child_process,
-               elem);
-      list_remove(&cp->elem);
-      free(cp);
-      e = next;
-    }
+  while (e != list_end (&t->child_list)){
+    next = list_next(e);
+    struct child_process *cp = list_entry (e, struct child_process,
+             elem);
+    list_remove(&cp->elem);
+    free(cp);
+    e = next;
+  }
 }
