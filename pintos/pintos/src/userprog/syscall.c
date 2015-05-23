@@ -25,7 +25,7 @@ struct file* process_get_file (int fd);
 
 static void syscall_handler (struct intr_frame *);
 int user_to_kernel_ptr(const void *vaddr);
-
+void check_ptr(const void *vaddr);
 void
 syscall_init (void) 
 {
@@ -195,6 +195,7 @@ static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
   int i, arg[MAX_ARGS];
+  check_ptr((const void*) f->esp);
   for (i = 0; i < MAX_ARGS; i++)
     {
       arg[i] = * ((int *) f->esp + i);
@@ -344,3 +345,11 @@ void remove_child_processes (void)
       e = next;
     }
 }
+
+void check_ptr(const void *vaddr){
+	if (!is_user_vaddr(vaddr)){
+		exit(ERROR);
+	}
+}
+
+
