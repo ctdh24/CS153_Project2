@@ -18,6 +18,7 @@
 
 #define MAX_ARGS 4
 
+static void syscall_handler (struct intr_frame *f UNUSED); 
 
 void
 syscall_init (void) 
