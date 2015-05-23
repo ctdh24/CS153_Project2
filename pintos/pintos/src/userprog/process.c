@@ -138,7 +138,7 @@ process_exit (void)
   process_close_file(-1);
 
   // $Clean up children
-  remove_child_processes();
+  remove_all_children();
 
   // $Exit = true if kernel kills
   if(thread_live(cur->parent)){
